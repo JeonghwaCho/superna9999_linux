@@ -95,16 +95,32 @@ static void meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		return;
 	}
 
-	/* Enable VPP Postblend */
-	writel(crtc_state->mode.hdisplay,
-	       priv->io_base + _REG(VPP_POSTBLEND_H_SIZE));
-
 	/* VD1 Preblend vertical start/end */
 	writel(FIELD_PREP(GENMASK(11, 0), 2303),
-			priv->io_base + _REG(VPP_PREBLEND_VD1_V_START_END));
+	       priv->io_base + _REG(VPP_PREBLEND_VD1_V_START_END));
 
-	writel_bits_relaxed(VPP_POSTBLEND_ENABLE, VPP_POSTBLEND_ENABLE,
-			    priv->io_base + _REG(VPP_MISC));
+	/* Enable VPP Postblend */
+	if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+		writel(crtc_state->mode.hdisplay |
+		       crtc_state->mode.vdisplay << 16,
+		       priv->io_base + _REG(VPP_POSTBLEND_H_SIZE));
+
+		writel_relaxed(0 << 16 |
+				crtc_state->mode.hdisplay,
+				priv->io_base + _REG(VPP_OSD1_BLD_H_SCOPE));
+		writel_relaxed(0 << 16 |
+				crtc_state->mode.vdisplay,
+				priv->io_base + _REG(VPP_OSD1_BLD_V_SCOPE));
+		writel_relaxed(crtc_state->mode.hdisplay << 16 |
+				crtc_state->mode.vdisplay,
+				priv->io_base + _REG(VPP_OUT_H_V_SIZE));
+	} else {
+		writel(crtc_state->mode.hdisplay,
+		       priv->io_base + _REG(VPP_POSTBLEND_H_SIZE));
+
+		writel_bits_relaxed(VPP_POSTBLEND_ENABLE, VPP_POSTBLEND_ENABLE,
+				    priv->io_base + _REG(VPP_MISC));
+	}
 
 	drm_crtc_vblank_on(crtc);
 
@@ -128,9 +144,10 @@ static void meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	priv->viu.vd1_commit = false;
 
 	/* Disable VPP Postblend */
-	writel_bits_relaxed(VPP_OSD1_POSTBLEND | VPP_VD1_POSTBLEND |
-			    VPP_VD1_PREBLEND | VPP_POSTBLEND_ENABLE, 0,
-			    priv->io_base + _REG(VPP_MISC));
+	if (!meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+		writel_bits_relaxed(VPP_OSD1_POSTBLEND | VPP_VD1_POSTBLEND |
+				    VPP_VD1_PREBLEND | VPP_POSTBLEND_ENABLE, 0,
+				    priv->io_base + _REG(VPP_MISC));
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -214,6 +231,24 @@ void meson_crtc_irq(struct meson_drm *priv)
 		writel_relaxed(priv->viu.osd_sc_v_ctrl0,
 				priv->io_base + _REG(VPP_OSD_VSC_CTRL0));
 
+		if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu")) {
+			writel_relaxed(priv->viu.osd_blend_din0_scope_h,
+				       priv->io_base +
+				       _REG(VIU_OSD_BLEND_DIN0_SCOPE_H));
+			writel_relaxed(priv->viu.osd_blend_din0_scope_v,
+				       priv->io_base +
+				       _REG(VIU_OSD_BLEND_DIN0_SCOPE_V));
+			writel_relaxed(priv->viu.osb_blend0_size,
+				       priv->io_base +
+				       _REG(VIU_OSD_BLEND_BLEND0_SIZE));
+			writel_relaxed(priv->viu.osb_blend1_size,
+				       priv->io_base +
+				       _REG(VIU_OSD_BLEND_BLEND1_SIZE));
+		} else
+			/* Enable OSD1 */
+			writel_bits_relaxed(VPP_OSD1_POSTBLEND, VPP_OSD1_POSTBLEND,
+					    priv->io_base + _REG(VPP_MISC));
+
 		if (priv->canvas)
 			meson_canvas_config(priv->canvas, priv->canvas_id_osd1,
 				priv->viu.osd1_addr, priv->viu.osd1_stride,
@@ -224,10 +259,6 @@ void meson_crtc_irq(struct meson_drm *priv)
 				priv->viu.osd1_addr, priv->viu.osd1_stride,
 				priv->viu.osd1_height, MESON_CANVAS_WRAP_NONE,
 				MESON_CANVAS_BLKMODE_LINEAR, 0);
-
-		/* Enable OSD1 */
-		writel_bits_relaxed(VPP_OSD1_POSTBLEND, VPP_OSD1_POSTBLEND,
-				    priv->io_base + _REG(VPP_MISC));
 
 		priv->viu.osd1_commit = false;
 	}
@@ -423,11 +454,18 @@ void meson_crtc_irq(struct meson_drm *priv)
 		writel_relaxed(0x42, priv->io_base + _REG(VPP_SCALE_COEF_IDX));
 
 		/* Enable VD1 */
-		writel_bits_relaxed(VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND |
-				    VPP_COLOR_MNG_ENABLE,
-				    VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND |
-				    VPP_COLOR_MNG_ENABLE,
-				    priv->io_base + _REG(VPP_MISC));
+		if (meson_vpu_is_compatible(priv, "amlogic,meson-g12a-vpu"))
+			writel_relaxed(((1 << 16) | /* post bld premult*/
+				(1 << 8) | /* post src */
+				(1 << 4) | /* pre bld premult*/
+				(1 << 0)),
+				priv->io_base + _REG(VD1_BLEND_SRC_CTRL));
+		else
+			writel_bits_relaxed(VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND |
+					    VPP_COLOR_MNG_ENABLE,
+					    VPP_VD1_PREBLEND | VPP_VD1_POSTBLEND |
+					    VPP_COLOR_MNG_ENABLE,
+					    priv->io_base + _REG(VPP_MISC));
 
 		priv->viu.vd1_commit = false;
 	}
