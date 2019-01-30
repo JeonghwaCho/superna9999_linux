@@ -236,6 +236,9 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
 			goto free_drm;
 		}
+	} else if (PTR_ERR(priv->canvas) == -EPROBE_DEFER) {
+		ret = PTR_ERR(priv->canvas);
+		goto free_drm;
 	} else {
 		priv->canvas = NULL;
 
