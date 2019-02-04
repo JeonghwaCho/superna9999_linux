@@ -16,6 +16,7 @@
 	aliases {
 		serial0 = &uart_AO;
 		ethernet0 = &ethmac;
+		i2c0 = &i2c3;
 	};
 
 	ao_5v: regulator-ao_5v {
@@ -181,6 +182,54 @@
 &hdmi_tx_tmds_port {
 	hdmi_tx_tmds_out: endpoint {
 		remote-endpoint = <&hdmi_connector_in>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-0 = <&i2c3_a_pins>;
+	pinctrl-names = "default";
+
+	led@3d {
+		compatible = "awinic,aw2015";
+		reg = <0x3d>;
+		vcc-supply = <&vddao_3v3_t>;
+
+		r {
+			aw2015,name = "R";
+			aw2015,id = <1>;
+			aw2015,max-brightness = <255>;
+			aw2015,max-current = <255>;
+			aw2015,rise-time-ms = <10>;
+			aw2015,hold-time-ms = <10>;
+			aw2015,fall-time-ms = <10>;
+			aw2015,off-time-ms = <10>;
+			aw2015,pwm-duty = <50>;
+		};
+
+		g {
+			aw2015,name = "G";
+			aw2015,id = <2>;
+			aw2015,max-brightness = <255>;
+			aw2015,max-current = <255>;
+			aw2015,rise-time-ms = <10>;
+			aw2015,hold-time-ms = <10>;
+			aw2015,fall-time-ms = <10>;
+			aw2015,off-time-ms = <10>;
+			aw2015,pwm-duty = <50>;
+		};
+
+		b{
+			aw2015,name = "B";
+			aw2015,id = <3>;
+			aw2015,max-brightness = <255>;
+			aw2015,max-current = <255>;
+			aw2015,rise-time-ms = <10>;
+			aw2015,hold-time-ms = <10>;
+			aw2015,fall-time-ms = <10>;
+			aw2015,off-time-ms = <10>;
+			aw2015,pwm-duty = <50>;
+		};
 	};
 };
 
