@@ -282,3 +282,15 @@
 	pinctrl-0 = <&uart_ao_a_pins>;
 	pinctrl-names = "default";
 };
+
+&usb {
+	status = "okay";
+};
+
+&usb3 {
+	status = "okay";
+};
+
+&dwc2 {
+	status = "okay";
+};
