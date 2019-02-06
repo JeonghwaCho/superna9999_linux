@@ -166,8 +166,11 @@
 #define CLKID_MALI_0_DIV			170
 #define CLKID_MALI_1_DIV			173
 #define CLKID_MPLL_5OM_DIV			176
+#define CLKID_PCIE_PLL_DCO			178
+#define CLKID_PCIE_PLL_DCO_DIV2			179
+#define CLKID_PCIE_PLL_OD			180
 
-#define NR_CLKS					178
+#define NR_CLKS					182
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/g12a-clkc.h>
