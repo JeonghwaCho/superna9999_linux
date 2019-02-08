@@ -192,3 +192,15 @@
 		remote-endpoint = <&hdmi_connector_in>;
 	};
 };
+
+&usb {
+	status = "okay";
+};
+
+&usb3 {
+	status = "okay";
+};
+
+&dwc2 {
+	status = "okay";
+};
